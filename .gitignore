@@ -108,6 +108,9 @@ venv.bak/
 *.png
 *.jpg
 
+# videos
+*.mp4
+
 # weights
 *.hdf5
 
