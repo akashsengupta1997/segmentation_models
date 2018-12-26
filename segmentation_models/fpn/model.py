@@ -55,7 +55,7 @@ def FPN(backbone_name='vgg16',
         segmentation_block_filters: a number of filters in Segmentation Head of FPN_.
         upsample_rates: list of rates for upsampling pyramid blocks (to make them same spatial resolution).
         last_upsample: rate for upsumpling concatenated pyramid predictions to
-            match spatial resolution of input data.
+            match spatial resolution of input data - set = 1 for no upsampling (64x64 output)
         interpolation: interpolation type for upsampling layers, on of ``nearest``, ``bilinear``.
         use_batchnorm: if ``True``, ``BatchNormalisation`` layer between ``Conv2D`` and ``Activation`` layers
                 is used.
