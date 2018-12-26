@@ -3,6 +3,7 @@ from keras.layers import Conv2D
 from keras.layers import Concatenate
 from keras.layers import Activation
 from keras.layers import SpatialDropout2D
+from keras.layers import Reshape
 from keras.models import Model
 
 from .blocks import pyramid_block
@@ -87,6 +88,9 @@ def build_fpn(backbone,
 
     # upsampling to original spatial resolution
     x = ResizeImage(to_tuple(last_upsample), interpolation=interpolation)(x)
+
+    # resize so that I can use categorical crossentropy loss
+    x = Reshape((int(x.shape[1]) * int(x.shape[2]), classes))(x)
 
     # activation
     x = Activation(activation)(x)
