@@ -205,11 +205,11 @@ def segmentation_train():
 
 
 def segmentation_test(img_wh, img_dec_wh, save=False):
-    test_image_dir = 'multiperson_bodyparts_tests/'
+    test_image_dir = 'test_videos/my_vid1'
     print('Preloaded model')
     autoencoder = load_model('/Users/Akash_Sengupta/Documents/GitHub/segmentation_models/'
-                             'bodypart_test_models/test_weight0301.hdf5')
+                             'bodypart_models/FPN_resnet50_256_2101.hdf5')
     test(None, autoencoder, img_wh, img_dec_wh, test_image_dir, save=save)
 
-segmentation_train()
-# segmentation_test(256, 256, save=True)
+# segmentation_train()
+segmentation_test(256, 256, save=True)
