@@ -11,14 +11,45 @@ from matplotlib import pyplot as plt
 NUM_BODYPARTS = 31
 
 
-def classlab(labels):
+def labels_from_seg_image(seg_image_batch):
+    """
+    PPP seg_images have pixels labelled as follows:
+    Lower leg - 89
+    Upper leg - 52
+    Lower arm - 14
+    Upper arm - 113
+    Torso - 75
+    Head - 38
+    Background - 0
+
+    This function changes labels to:
+    Lower leg - 1
+    Upper leg - 2
+    Lower arm - 3
+    Upper arm - 4
+    Torso - 5
+    Head - 6
+    Background - 0
+
+    :param seg_image_batch: batch of segmentation masks with Pascal VOC labels
+    :return: relabelled batch of segmentation masks
+    """
+    copy_batch = seg_image_batch.copy()
+    copy_batch[seg_image_batch == 89] = 1
+    copy_batch[seg_image_batch == 52] = 2
+    copy_batch[seg_image_batch == 14] = 3
+    copy_batch[seg_image_batch == 113] = 4
+    copy_batch[seg_image_batch == 75] = 5
+    copy_batch[seg_image_batch == 38] = 6
+    return copy_batch
+
+
+def classlab(labels, num_classes):
     """
     Function to convert HxWx1 labels image to HxWxC one hot encoded matrix.
     :param labels: HxWx1 labels image
     :return: HxWxC one hot encoded matrix.
     """
-    # There are 32 classes per pixel - 0 is background, 1-31 is bodyparts
-    num_classes = NUM_BODYPARTS + 1
     x = np.zeros((labels.shape[0], labels.shape[1], num_classes))
     # print('IN CLASSLAB', labels.shape)
     for pixel_class in range(num_classes):
@@ -29,7 +60,7 @@ def classlab(labels):
     return x
 
 
-def generate_data(image_generator, mask_generator, n):
+def generate_data(image_generator, mask_generator, n, num_classes):
     images = []
     labels = []
     i = 0
@@ -45,7 +76,7 @@ def generate_data(image_generator, mask_generator, n):
         j = 0
         while j < x.shape[0]:
             images.append(x[j, :, :, :])
-            labels.append(classlab(y[j, :, :, :].astype(np.uint8)))
+            labels.append(classlab(y[j, :, :, :].astype(np.uint8), num_classes))
             j = j + 1
             i = i + 1
             if i >= n:
@@ -56,7 +87,7 @@ def generate_data(image_generator, mask_generator, n):
     return np.array(images), np.array(labels)
 
 
-def test(train_data, model, img_wh, img_dec_wh, image_dir, save=False):
+def test(train_data, model, img_wh, img_dec_wh, image_dir, num_classes, save=False):
     img_list = []
     if not (train_data is None):
         for id in range(0, 10):
@@ -80,7 +111,7 @@ def test(train_data, model, img_wh, img_dec_wh, image_dir, save=False):
 
     img_tensor = np.array(img_list)
     output = np.reshape(model.predict(img_tensor), (len(img_list), img_dec_wh, img_dec_wh,
-                                                    NUM_BODYPARTS+1))
+                                                    num_classes))
     print("orig output shape", output.shape)
     for img_num in range(len(img_list)):
         seg_labels = output[img_num, :, :, :]
@@ -96,53 +127,58 @@ def test(train_data, model, img_wh, img_dec_wh, image_dir, save=False):
             plt.imshow(seg_labels[:, :, 3], cmap="gray")
             plt.subplot(333)
             plt.imshow(seg_labels[:, :, 6], cmap="gray")
-            plt.subplot(334)
-            plt.imshow(seg_labels[:, :, 9], cmap="gray")
-            plt.subplot(335)
-            plt.imshow(seg_labels[:, :, 12], cmap="gray")
-            plt.subplot(336)
-            plt.imshow(seg_labels[:, :, 15], cmap="gray")
-            plt.subplot(337)
-            plt.imshow(seg_labels[:, :, 18], cmap="gray")
-            plt.subplot(338)
-            plt.imshow(seg_labels[:, :, 21], cmap="gray")
-            plt.subplot(339)
-            plt.imshow(seg_labels[:, :, 24], cmap="gray")
             plt.figure(2)
             plt.clf()
-            plt.imshow(seg_img*8)
+            plt.imshow(seg_img)
             plt.figure(3)
             plt.clf()
             plt.imshow(img_list[img_num])
             plt.show()
         else:
-            save_path = os.path.join(image_dir, "results", os.path.splitext(fnames[img_num])[0]
+            if img_dec_wh == 64:
+                save_folder = 'results64'
+            elif img_dec_wh == 256:
+                save_folder = 'results256'
+            save_path = os.path.join(image_dir, save_folder, os.path.splitext(fnames[img_num])[0]
                                      + "_seg_img.png")
             plt.imsave(save_path, seg_img * 8)
 
 
-def segmentation_train():
-    img_wh = 256
-    img_dec_wh = 64
-    batch_size = 1
-    test_image_dir_list = []  # TODO
+def segmentation_train(img_wh, img_dec_wh, dataset):
+    batch_size = 10  # TODO change back to 10
 
-    train_image_dir = "/Users/Akash_Sengupta/Documents/4th_year_project_datasets/up-s31/trial/images"
-    train_label_dir = "/Users/Akash_Sengupta/Documents/4th_year_project_datasets/up-s31/trial/masks"
+    if dataset == 'up-s31':
+        train_image_dir = "/Users/Akash_Sengupta/Documents/4th_year_project_datasets/up-s31/s31/images"
+        train_label_dir = "/Users/Akash_Sengupta/Documents/4th_year_project_datasets/up-s31/s31/masks"
+        # TODO create validation directory
+        num_classes = 32
+        num_train_images = 8515
+
+    elif dataset == 'ppp':
+        train_image_dir = '/Users/Akash_Sengupta/Documents/4th_year_project_datasets/VOC2010/pascal_person_part/train_images'
+        train_label_dir = '/Users/Akash_Sengupta/Documents/4th_year_project_datasets/VOC2010/pascal_person_part/train_masks'
+        val_image_dir = '/Users/Akash_Sengupta/Documents/4th_year_project_datasets/VOC2010/pascal_person_part/val_images'
+        val_label_dir = '/Users/Akash_Sengupta/Documents/4th_year_project_datasets/VOC2010/pascal_person_part/val_masks'
+        num_classes = 7
+        num_train_images = 3034
+        num_val_images = 500
+
     assert os.path.isdir(train_image_dir), 'Invalid image directory'
     assert os.path.isdir(train_label_dir), 'Invalid label directory'
+    assert os.path.isdir(val_image_dir), 'Invalid validation image directory'
+    assert os.path.isdir(val_label_dir), 'Invalid validation label directory'
 
-    image_data_gen_args = dict(
+    train_image_data_gen_args = dict(
         rotation_range=40,
         width_shift_range=0.2,
         height_shift_range=0.2,
         shear_range=0.2,
         zoom_range=0.2,
         horizontal_flip=True,
-        rescale = 1/255.0,
+        rescale=1 / 255.0,
         fill_mode='nearest')
 
-    mask_data_gen_args = dict(
+    train_mask_data_gen_args = dict(
         rotation_range=40,
         width_shift_range=0.2,
         height_shift_range=0.2,
@@ -151,65 +187,103 @@ def segmentation_train():
         horizontal_flip=True,
         fill_mode='nearest')
 
-    image_datagen = ImageDataGenerator(**image_data_gen_args)
-    mask_datagen = ImageDataGenerator(**mask_data_gen_args)
+    val_image_data_gen_args = dict(
+        rescale=(1 / 255.0),
+        fill_mode='nearest')
 
-    # Provide the same seed to flow methods
+    val_mask_data_gen_args = dict(
+        fill_mode='nearest')
+
+    train_image_datagen = ImageDataGenerator(**train_image_data_gen_args)
+    train_mask_datagen = ImageDataGenerator(**train_mask_data_gen_args)
+    val_image_datagen = ImageDataGenerator(**val_image_data_gen_args)
+    val_mask_datagen = ImageDataGenerator(**val_mask_data_gen_args)
+
+    # Provide the same seed to flow methods for train generators
     seed = 1
-    image_generator = image_datagen.flow_from_directory(
+    train_image_generator = train_image_datagen.flow_from_directory(
         train_image_dir,
         batch_size=batch_size,
         target_size=(img_wh, img_wh),
         class_mode=None,
         seed=seed)
 
-    mask_generator = mask_datagen.flow_from_directory(
+    train_mask_generator = train_mask_datagen.flow_from_directory(
         train_label_dir,
+        batch_size=batch_size,
+        target_size=(img_dec_wh, img_dec_wh),
+        class_mode=None,
+        color_mode="grayscale")
+
+    val_image_generator = val_image_datagen.flow_from_directory(
+        val_image_dir,
+        batch_size=batch_size,
+        target_size=(img_wh, img_wh),
+        class_mode=None)
+
+    val_mask_generator = val_mask_datagen.flow_from_directory(
+        val_label_dir,
         batch_size=batch_size,
         target_size=(img_dec_wh, img_dec_wh),
         class_mode=None,
         color_mode="grayscale",
         seed=seed)
+
     print('Generators loaded.')
 
     model = FPN(backbone_name='resnet50',
                 encoder_weights=None,
-                classes=32,
+                classes=num_classes,
                 input_shape=(img_wh, img_wh, 3),
-                last_upsample=1
+                last_upsample=4
                 )
 
     model.compile('Adam', 'categorical_crossentropy', ['accuracy'])
-    print(model.summary())
+    # print(model.summary())
 
-    for trials in range(11, 4000):
+    for trials in range(4000):
         nb_epoch = 1
         print("Fitting", trials)
 
-        def data_gen():
+        def train_data_gen():
             while True:
-                train_data, train_label_images = generate_data(image_generator, mask_generator,
-                                                               batch_size)
-                train_label = np.reshape(train_label_images,
-                                         (batch_size, img_dec_wh * img_dec_wh,
-                                          NUM_BODYPARTS + 1))
-                yield (train_data, train_label)
+                train_data, train_labels = generate_data(train_image_generator,
+                                                         train_mask_generator,
+                                                         batch_size, num_classes)
+                reshaped_train_labels = np.reshape(train_labels,
+                                                   (batch_size, img_dec_wh * img_dec_wh,
+                                                    num_classes))
+                yield (train_data, reshaped_train_labels)
 
-        history = model.fit_generator(data_gen(), steps_per_epoch=int(1 / batch_size),
-                                      nb_epoch=nb_epoch, verbose=1)
+        def val_data_gen():
+            while True:
+                val_data, val_labels = generate_data(val_image_generator,
+                                                     val_mask_generator,
+                                                     batch_size, num_classes)
+                reshaped_val_labels = np.reshape(val_labels,
+                                                 (batch_size, img_dec_wh * img_dec_wh,
+                                                  num_classes))
+                yield (val_data, reshaped_val_labels)
+
+        history = model.fit_generator(train_data_gen(),
+                                      steps_per_epoch=int(num_train_images / batch_size),
+                                      nb_epoch=nb_epoch,
+                                      verbose=1,
+                                      validation_data=val_data_gen(),
+                                      validation_steps=int(
+                                      num_val_images) / batch_size)
 
         print("After fitting")
-        if trials % 100 == 0:
-            model.save('bodypart_test_models/test_weight'
-                       + str(nb_epoch * (trials + 1)).zfill(4) + '.hdf5')
-
+        if trials % 200 == 0:
+            model.save('overfit_tests/ppp_test_weight'
+                             + str(nb_epoch * (trials + 1)).zfill(4) + '.hdf5')
 
 def segmentation_test(img_wh, img_dec_wh, save=False):
     test_image_dir = 'test_videos/my_vid1'
     print('Preloaded model')
     autoencoder = load_model('/Users/Akash_Sengupta/Documents/GitHub/segmentation_models/'
-                             'bodypart_models/FPN_resnet50_256_2101.hdf5')
+                             'bodypart_models/FPN_resnet50_64_0601.hdf5')
     test(None, autoencoder, img_wh, img_dec_wh, test_image_dir, save=save)
 
-# segmentation_train()
-segmentation_test(256, 256, save=True)
+segmentation_train(256, 256, 'ppp')
+# segmentation_test(256, 64, save=True)
