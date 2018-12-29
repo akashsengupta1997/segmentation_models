@@ -231,11 +231,16 @@ def segmentation_train(img_wh, img_dec_wh, dataset):
 
     print('Generators loaded.')
 
+    if img_dec_wh == 256:
+        last_upsample = 4
+    elif img_dec_wh == 64:
+        last_upsample = 1
+        
     model = FPN(backbone_name='resnet50',
                 encoder_weights=None,
                 classes=num_classes,
                 input_shape=(img_wh, img_wh, 3),
-                last_upsample=4
+                last_upsample=last_upsample
                 )
 
     model.compile('Adam', 'categorical_crossentropy', ['accuracy'])
