@@ -8,9 +8,6 @@ from keras.models import load_model
 from matplotlib import pyplot as plt
 
 
-NUM_BODYPARTS = 31
-
-
 def labels_from_seg_image(seg_image_batch):
     """
     PPP seg_images have pixels labelled as follows:
@@ -48,6 +45,7 @@ def classlab(labels, num_classes):
     """
     Function to convert HxWx1 labels image to HxWxC one hot encoded matrix.
     :param labels: HxWx1 labels image
+    :param num_classes: number of possible classes for each pixel
     :return: HxWxC one hot encoded matrix.
     """
     x = np.zeros((labels.shape[0], labels.shape[1], num_classes))
@@ -67,12 +65,8 @@ def generate_data(image_generator, mask_generator, n, num_classes):
     while i < n:
         x = image_generator.next()
         y = mask_generator.next()
-        # x and y are batches of images and masks
-        # plt.imshow(y[0, :, :, 0]*8)
-        # plt.show()
-        # print(str(len(images))+ " " +str(x.shape))
-        # print('x shape in generate data', x.shape) # should = (batch_size, img_hw, img_hw, 3)
-        # print('y shape in generate data', y.shape) # should = (batch_size, dec_hw, dec_hw, 1)
+        if num_classes == 7:  # Need to change labels if using ppp dataset
+            y = labels_from_seg_image(y)
         j = 0
         while j < x.shape[0]:
             images.append(x[j, :, :, :])
@@ -85,63 +79,6 @@ def generate_data(image_generator, mask_generator, n, num_classes):
     # print('images shape in generate data', np.array(images).shape,
     #       'labels shape in generate data', np.array(labels).shape)
     return np.array(images), np.array(labels)
-
-
-def test(train_data, model, img_wh, img_dec_wh, image_dir, num_classes, save=False):
-    img_list = []
-    if not (train_data is None):
-        for id in range(0, 10):
-            # plt.imshow((train_data[0][id,:,:,:]).astype(np.uint8))
-            # plt.show()
-            img_list.append(train_data[0][id, :, :, :])
-    # plt.imshow((img_list[id]).astype(np.uint8))
-    # plt.show()
-
-    fnames = []
-    for fname in sorted(os.listdir(image_dir)):
-        if fname.endswith(".png") or fname.endswith(".jpg"):
-            print(fname)
-            image = cv2.imread(os.path.join(image_dir, fname))
-            image = cv2.resize(image, (img_wh, img_wh))
-            image = image[..., ::-1]
-            # plt.imshow(image)
-            # plt.show()
-            img_list.append(image / 255.0)
-            fnames.append(fname)
-
-    img_tensor = np.array(img_list)
-    output = np.reshape(model.predict(img_tensor), (len(img_list), img_dec_wh, img_dec_wh,
-                                                    num_classes))
-    print("orig output shape", output.shape)
-    for img_num in range(len(img_list)):
-        seg_labels = output[img_num, :, :, :]
-        seg_img = np.argmax(seg_labels, axis=2)
-        print("labels output shape", seg_labels.shape)
-        print("seg img output shape", seg_img.shape)
-        if not save:
-            plt.figure(1)
-            plt.clf()
-            plt.subplot(331)
-            plt.imshow(seg_labels[:, :, 0], cmap="gray")
-            plt.subplot(332)
-            plt.imshow(seg_labels[:, :, 3], cmap="gray")
-            plt.subplot(333)
-            plt.imshow(seg_labels[:, :, 6], cmap="gray")
-            plt.figure(2)
-            plt.clf()
-            plt.imshow(seg_img)
-            plt.figure(3)
-            plt.clf()
-            plt.imshow(img_list[img_num])
-            plt.show()
-        else:
-            if img_dec_wh == 64:
-                save_folder = 'results64'
-            elif img_dec_wh == 256:
-                save_folder = 'results256'
-            save_path = os.path.join(image_dir, save_folder, os.path.splitext(fnames[img_num])[0]
-                                     + "_seg_img.png")
-            plt.imsave(save_path, seg_img * 8)
 
 
 def segmentation_train(img_wh, img_dec_wh, dataset):
@@ -161,6 +98,7 @@ def segmentation_train(img_wh, img_dec_wh, dataset):
         val_label_dir = '/Users/Akash_Sengupta/Documents/4th_year_project_datasets/VOC2010/pascal_person_part/val_masks'
         num_classes = 7
         num_train_images = 3034
+        # num_train_images = 1
         num_val_images = 500
 
     assert os.path.isdir(train_image_dir), 'Invalid image directory'
@@ -169,21 +107,21 @@ def segmentation_train(img_wh, img_dec_wh, dataset):
     assert os.path.isdir(val_label_dir), 'Invalid validation label directory'
 
     train_image_data_gen_args = dict(
-        rotation_range=40,
-        width_shift_range=0.2,
-        height_shift_range=0.2,
-        shear_range=0.2,
-        zoom_range=0.2,
+        rotation_range=10,
+        width_shift_range=0.1,
+        height_shift_range=0.1,
+        shear_range=0.1,
+        zoom_range=0.1,
         horizontal_flip=True,
         rescale=1 / 255.0,
         fill_mode='nearest')
 
     train_mask_data_gen_args = dict(
-        rotation_range=40,
-        width_shift_range=0.2,
-        height_shift_range=0.2,
-        shear_range=0.2,
-        zoom_range=0.2,
+        rotation_range=10,
+        width_shift_range=0.1,
+        height_shift_range=0.1,
+        shear_range=0.1,
+        zoom_range=0.1,
         horizontal_flip=True,
         fill_mode='nearest')
 
@@ -235,7 +173,7 @@ def segmentation_train(img_wh, img_dec_wh, dataset):
         last_upsample = 4
     elif img_dec_wh == 64:
         last_upsample = 1
-        
+
     model = FPN(backbone_name='resnet50',
                 encoder_weights=None,
                 classes=num_classes,
@@ -273,22 +211,16 @@ def segmentation_train(img_wh, img_dec_wh, dataset):
         history = model.fit_generator(train_data_gen(),
                                       steps_per_epoch=int(num_train_images / batch_size),
                                       nb_epoch=nb_epoch,
-                                      verbose=1,
-                                      validation_data=val_data_gen(),
-                                      validation_steps=int(
-                                      num_val_images) / batch_size)
+                                      verbose=1)
+                                      # validation_data=val_data_gen(),
+                                      # validation_steps=int(
+                                      # num_val_images) / batch_size)
 
         print("After fitting")
-        if trials % 200 == 0:
-            model.save('overfit_tests/ppp_test_weight'
+        if trials % 100 == 0:
+            model.save('overfit_tests/ppp_test_weight_256_2010_'
                              + str(nb_epoch * (trials + 1)).zfill(4) + '.hdf5')
 
-def segmentation_test(img_wh, img_dec_wh, save=False):
-    test_image_dir = 'test_videos/my_vid1'
-    print('Preloaded model')
-    autoencoder = load_model('/Users/Akash_Sengupta/Documents/GitHub/segmentation_models/'
-                             'bodypart_models/FPN_resnet50_64_0601.hdf5')
-    test(None, autoencoder, img_wh, img_dec_wh, test_image_dir, save=save)
 
 segmentation_train(256, 256, 'ppp')
-# segmentation_test(256, 64, save=True)
+# segmentation_test(256, 256, save=False)
