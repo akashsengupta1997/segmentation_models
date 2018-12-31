@@ -151,13 +151,15 @@ def segmentation_train(img_wh, img_dec_wh, dataset):
         batch_size=batch_size,
         target_size=(img_dec_wh, img_dec_wh),
         class_mode=None,
-        color_mode="grayscale")
+        color_mode="grayscale",
+        seed=seed)
 
     val_image_generator = val_image_datagen.flow_from_directory(
         val_image_dir,
         batch_size=batch_size,
         target_size=(img_wh, img_wh),
-        class_mode=None)
+        class_mode=None,
+        seed=seed)
 
     val_mask_generator = val_mask_datagen.flow_from_directory(
         val_label_dir,
