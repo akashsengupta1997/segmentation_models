@@ -58,14 +58,14 @@ def classlab(labels, num_classes):
     return x
 
 
-def generate_data(image_generator, mask_generator, n, num_classes):
+def generate_data(image_generator, mask_generator, n, num_classes, dataset):
     images = []
     labels = []
     i = 0
     while i < n:
         x = image_generator.next()
         y = mask_generator.next()
-        if num_classes == 7:  # Need to change labels if using ppp dataset
+        if dataset == 'ppp':  # Need to change labels if using ppp dataset
             y = labels_from_seg_image(y)
         j = 0
         while j < x.shape[0]:
@@ -82,7 +82,7 @@ def generate_data(image_generator, mask_generator, n, num_classes):
 
 
 def segmentation_train(img_wh, img_dec_wh, dataset):
-    batch_size = 10  # TODO change back to 10
+    batch_size = 1  # TODO change back to 10
 
     if dataset == 'up-s31':
         train_image_dir = "/Users/Akash_Sengupta/Documents/4th_year_project_datasets/up-s31/s31/images"
@@ -92,14 +92,24 @@ def segmentation_train(img_wh, img_dec_wh, dataset):
         num_train_images = 8515
 
     elif dataset == 'ppp':
-        train_image_dir = '/Users/Akash_Sengupta/Documents/4th_year_project_datasets/VOC2010/pascal_person_part/train_images'
-        train_label_dir = '/Users/Akash_Sengupta/Documents/4th_year_project_datasets/VOC2010/pascal_person_part/train_masks'
+        train_image_dir = '/Users/Akash_Sengupta/Documents/4th_year_project_datasets/VOC2010/pascal_person_part/trial_train_images'
+        train_label_dir = '/Users/Akash_Sengupta/Documents/4th_year_project_datasets/VOC2010/pascal_person_part/trial_train_masks'
         val_image_dir = '/Users/Akash_Sengupta/Documents/4th_year_project_datasets/VOC2010/pascal_person_part/val_images'
         val_label_dir = '/Users/Akash_Sengupta/Documents/4th_year_project_datasets/VOC2010/pascal_person_part/val_masks'
         num_classes = 7
-        num_train_images = 3034
-        # num_train_images = 1
+        # num_train_images = 3034
+        num_train_images = 1
         num_val_images = 500
+
+    elif dataset == 'ppp+up-s31':
+        train_image_dir = '/Users/Akash_Sengupta/Documents/4th_year_project_datasets/VOC2010/pascal_person_part/trial_train_images'
+        train_label_dir = '/Users/Akash_Sengupta/Documents/4th_year_project_datasets/VOC2010/pascal_person_part/trial_train_masks'
+        val_image_dir = '/Users/Akash_Sengupta/Documents/4th_year_project_datasets/VOC2010/pascal_person_part/val_images'
+        val_label_dir = '/Users/Akash_Sengupta/Documents/4th_year_project_datasets/VOC2010/pascal_person_part/val_masks'
+        num_classes = 7
+        num_train_images = 7033
+        # num_train_images = 1
+        num_val_images = 1000
 
     assert os.path.isdir(train_image_dir), 'Invalid image directory'
     assert os.path.isdir(train_label_dir), 'Invalid label directory'
@@ -107,21 +117,21 @@ def segmentation_train(img_wh, img_dec_wh, dataset):
     assert os.path.isdir(val_label_dir), 'Invalid validation label directory'
 
     train_image_data_gen_args = dict(
-        rotation_range=10,
-        width_shift_range=0.1,
-        height_shift_range=0.1,
-        shear_range=0.1,
-        zoom_range=0.1,
+        rotation_range=40,
+        width_shift_range=0.2,
+        height_shift_range=0.2,
+        shear_range=0.2,
+        zoom_range=0.2,
         horizontal_flip=True,
         rescale=1 / 255.0,
         fill_mode='nearest')
 
     train_mask_data_gen_args = dict(
-        rotation_range=10,
-        width_shift_range=0.1,
-        height_shift_range=0.1,
-        shear_range=0.1,
-        zoom_range=0.1,
+        rotation_range=40,
+        width_shift_range=0.2,
+        height_shift_range=0.2,
+        shear_range=0.2,
+        zoom_range=0.2,
         horizontal_flip=True,
         fill_mode='nearest')
 
@@ -194,7 +204,9 @@ def segmentation_train(img_wh, img_dec_wh, dataset):
             while True:
                 train_data, train_labels = generate_data(train_image_generator,
                                                          train_mask_generator,
-                                                         batch_size, num_classes)
+                                                         batch_size,
+                                                         num_classes,
+                                                         dataset)
                 reshaped_train_labels = np.reshape(train_labels,
                                                    (batch_size, img_dec_wh * img_dec_wh,
                                                     num_classes))
@@ -220,9 +232,9 @@ def segmentation_train(img_wh, img_dec_wh, dataset):
 
         print("After fitting")
         if trials % 100 == 0:
-            model.save('overfit_tests/ppp_test_weight_256_2010_'
+            model.save('overfit_tests/ppp_test_weight_64_2010_'
                              + str(nb_epoch * (trials + 1)).zfill(4) + '.hdf5')
 
 
-segmentation_train(256, 256, 'ppp')
+segmentation_train(256, 64, 'ppp')
 # segmentation_test(256, 256, save=False)

@@ -61,11 +61,11 @@ def test(model, img_wh, img_dec_wh, image_dir, num_classes, save=False):
 
 
 def segmentation_test(img_wh, img_dec_wh, num_classes, save=False):
-    test_image_dir = 'test_images'
+    test_image_dir = '/Users/Akash_Sengupta/Documents/4th_year_project_datasets/VOC2010/pascal_person_part/trial_train_images/train'
     print('Preloaded model')
     autoencoder = load_model('/Users/Akash_Sengupta/Documents/GitHub/segmentation_models/'
-                             'up-s31_models/FPN_resnet50_64_0601.hdf5')
+                             'overfit_tests/ppp_test_weight_64_2010_0501.hdf5')
     test(autoencoder, img_wh, img_dec_wh, test_image_dir, num_classes, save=save)
 
 
-segmentation_test(256, 64, 32, save=True)
+segmentation_test(256, 64, 7, save=False)
