@@ -236,5 +236,5 @@ def segmentation_train(img_wh, img_dec_wh, dataset):
                              + str(nb_epoch * (trials + 1)).zfill(4) + '.hdf5')
 
 
-segmentation_train(256, 64, 'ppp')
+# segmentation_train(256, 64, 'ppp')
 # segmentation_test(256, 256, save=False)
