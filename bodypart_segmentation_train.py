@@ -85,11 +85,15 @@ def segmentation_train(img_wh, img_dec_wh, dataset):
     batch_size = 1  # TODO change back to 10
 
     if dataset == 'up-s31':
-        train_image_dir = "/Users/Akash_Sengupta/Documents/4th_year_project_datasets/up-s31/s31/images"
-        train_label_dir = "/Users/Akash_Sengupta/Documents/4th_year_project_datasets/up-s31/s31/masks"
-        # TODO create validation directory
+        train_image_dir = "/Users/Akash_Sengupta/Documents/4th_year_project_datasets/up-s31/s31_padded/images"
+        train_label_dir = "/Users/Akash_Sengupta/Documents/4th_year_project_datasets/up-s31/s31_padded/masks"
+        val_image_dir = "/Users/Akash_Sengupta/Documents/4th_year_project_datasets/up-s31/s31_padded/val_images"
+        val_label_dir = "/Users/Akash_Sengupta/Documents/4th_year_project_datasets/up-s31/s31_padded/val_masks"
         num_classes = 32
-        num_train_images = 8515
+        # num_train_images = 7664
+        # num_val_images = 851
+        num_train_images = 5932
+        num_val_images = 665
 
     elif dataset == 'ppp':
         train_image_dir = '/Users/Akash_Sengupta/Documents/4th_year_project_datasets/VOC2010/pascal_person_part/trial_train_images'
@@ -216,7 +220,9 @@ def segmentation_train(img_wh, img_dec_wh, dataset):
             while True:
                 val_data, val_labels = generate_data(val_image_generator,
                                                      val_mask_generator,
-                                                     batch_size, num_classes)
+                                                     batch_size,
+                                                     num_classes,
+                                                     dataset)
                 reshaped_val_labels = np.reshape(val_labels,
                                                  (batch_size, img_dec_wh * img_dec_wh,
                                                   num_classes))
@@ -225,16 +231,44 @@ def segmentation_train(img_wh, img_dec_wh, dataset):
         history = model.fit_generator(train_data_gen(),
                                       steps_per_epoch=int(num_train_images / batch_size),
                                       nb_epoch=nb_epoch,
-                                      verbose=1)
-                                      # validation_data=val_data_gen(),
-                                      # validation_steps=int(
-                                      # num_val_images) / batch_size)
+                                      verbose=1,
+                                      validation_data=val_data_gen(),
+                                      validation_steps=int(
+                                      num_val_images) / batch_size)
 
         print("After fitting")
         if trials % 100 == 0:
-            model.save('overfit_tests/ppp_test_weight_64_2010_'
-                             + str(nb_epoch * (trials + 1)).zfill(4) + '.hdf5')
 
+            # Monitor training
+            img_list = []
+            fnames = []
+            monitor_images_dir = "./monitor_train/monitor_train_images"
+
+            for fname in sorted(os.listdir(monitor_images_dir)):
+                if fname.endswith(".png"):
+                    image = cv2.imread(os.path.join(monitor_images_dir, fname))
+                    image = cv2.resize(image, (img_wh, img_wh))
+                    image = image[..., ::-1]
+                    img_list.append(image / 255.0)
+                    fnames.append(os.path.splitext(fname)[0])
+
+            img_tensor = np.array(img_list)
+            output = np.reshape(model.predict(img_tensor),
+                                (-1, img_dec_wh, img_dec_wh,
+                                 num_classes))
+
+            for img_num in range(len(img_list)):
+                seg_labels = output[img_num, :, :, :]
+                seg_img = np.argmax(seg_labels, axis=-1)
+                plt.figure(1)
+                plt.clf()
+                plt.imshow(seg_img)
+                plt.savefig("./monitor_train/seg_" + str(trials) + "_" + fnames[img_num] +
+                            "_seg_image.png")
+
+            # Save model
+            model.save('up-s31_body_part_models/fpn256_' + str(trials + 1).zfill(4)
+                            + '.hdf5')
 
 # segmentation_train(256, 64, 'ppp')
 # segmentation_test(256, 256, save=False)

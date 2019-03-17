@@ -157,12 +157,12 @@ def evaluate_IoU(model_dir, dataset):
                 ground_truth = cv2.resize(ground_truth, (img_dec_wh, img_dec_wh),
                                           interpolation=cv2.INTER_NEAREST)
                 ground_truth = labels_from_seg_image(ground_truth)
-                plt.figure()
-                plt.subplot(211)
-                plt.imshow(ground_truth, cmap='gray')
-                plt.subplot(212)
-                plt.imshow(predicted_seg, cmap='gray')
-                plt.show()
+                # plt.figure()
+                # plt.subplot(211)
+                # plt.imshow(ground_truth, cmap='gray')
+                # plt.subplot(212)
+                # plt.imshow(predicted_seg, cmap='gray')
+                # plt.show()
                 iou = mean_iou(ground_truth, predicted_seg, num_classes)
                 # print(iou)
                 image_ious.append(iou)
@@ -171,8 +171,6 @@ def evaluate_IoU(model_dir, dataset):
             print('MODEL IOU', model_name, model_iou)
 
 
-evaluate_pixel_accuracy_CC_loss('./ppp_body_part_models', 'ppp')
-
-
-# evaluate_IoU('/Users/Akash_Sengupta/Documents/enet/ppp_body_part_models', 'ppp')
+# evaluate_pixel_accuracy_CC_loss('./test_dir', 'ppp')
+evaluate_IoU('./test_dir', 'ppp+up-s31')
 

@@ -54,7 +54,7 @@ def test(model, img_wh, img_dec_wh, image_dir, num_classes, save=False):
             elif img_dec_wh == 256:
                 save_folder = 'results256'
             if num_classes == 7:
-                save_folder = save_folder + '_ppp301'
+                save_folder = save_folder + '_pppups31'
             save_path = os.path.join(image_dir, save_folder, os.path.splitext(fnames[img_num])[0]
                                      + "_seg_img.png")
             plt.imsave(save_path, seg_img * 8)
