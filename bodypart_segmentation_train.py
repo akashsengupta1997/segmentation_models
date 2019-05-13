@@ -126,7 +126,7 @@ def segmentation_train(img_wh, img_dec_wh, dataset):
         height_shift_range=0.2,
         shear_range=0.2,
         zoom_range=0.2,
-        horizontal_flip=True,
+        horizontal_flip=False,
         rescale=1 / 255.0,
         fill_mode='nearest')
 
@@ -136,7 +136,7 @@ def segmentation_train(img_wh, img_dec_wh, dataset):
         height_shift_range=0.2,
         shear_range=0.2,
         zoom_range=0.2,
-        horizontal_flip=True,
+        horizontal_flip=False,
         fill_mode='nearest')
 
     val_image_data_gen_args = dict(
@@ -267,8 +267,8 @@ def segmentation_train(img_wh, img_dec_wh, dataset):
                             "_seg_image.png")
 
             # Save model
-            model.save('up-s31_body_part_models/fpn256_' + str(trials + 1).zfill(4)
+            model.save('up-s31_body_part_models/fpn256_no_horiz_flip_' + str(trials + 1).zfill(4)
                             + '.hdf5')
 
-# segmentation_train(256, 64, 'ppp')
+segmentation_train(256, 256, 'up-s31')
 # segmentation_test(256, 256, save=False)
