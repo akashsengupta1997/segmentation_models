@@ -8,64 +8,60 @@ from keras.models import load_model
 from segmentation_models import FPN
 
 
-def test(model, img_wh, img_dec_wh, image_dir, num_classes, save=False):
-    img_list = []
+def pad_image(img):
+    """
+    Pad image with 0s to make it square
+    :param image: HxWx3 numpy array
+    :return: AxAx3 numpy array (square image)
+    """
+    height, width, _ = img.shape
 
-    fnames = []
-    for fname in sorted(os.listdir(image_dir)):
+    if width < height:
+        border_width = (height - width) // 2
+        padded = cv2.copyMakeBorder(img, 0, 0, border_width, border_width,
+                                    cv2.BORDER_CONSTANT, value=0)
+    else:
+        border_width = (width - height) // 2
+        padded = cv2.copyMakeBorder(img, border_width, border_width, 0, 0,
+                                    cv2.BORDER_CONSTANT, value=0)
+
+    return padded
+
+
+def load_input_img(image_dir, fname, input_wh, pad=False):
+    input_img = cv2.imread(os.path.join(image_dir, fname))
+    if pad:
+        input_img = pad_image(input_img)
+    input_img = cv2.resize(input_img, (input_wh, input_wh))
+    input_img = input_img[..., ::-1]
+    input_img = input_img * (1.0 / 255)
+    input_img = np.expand_dims(input_img, axis=0)  # need 4D input (add batch dimension)
+    return input_img
+
+
+def predict(test_image_dir, model_path, input_wh, output_wh, num_classes, save=False,
+            pad=True):
+
+    seg_model = load_model(model_path)
+
+    for fname in sorted(os.listdir(test_image_dir)):
         if fname.endswith(".png") or fname.endswith(".jpg"):
             print(fname)
-            image = cv2.imread(os.path.join(image_dir, fname))
-            image = cv2.resize(image, (img_wh, img_wh))
-            image = image[..., ::-1]
-            # plt.imshow(image)
-            # plt.show()
-            img_list.append(image / 255.0)
-            fnames.append(fname)
+            input_img = load_input_img(test_image_dir, fname, input_wh, pad=pad)
 
-    img_tensor = np.array(img_list)
-    output = np.reshape(model.predict(img_tensor), (len(img_list), img_dec_wh, img_dec_wh,
-                                                    num_classes))
-    print("orig output shape", output.shape)
-    for img_num in range(len(img_list)):
-        seg_labels = output[img_num, :, :, :]
-        seg_img = np.argmax(seg_labels, axis=2)
-        print("labels output shape", seg_labels.shape)
-        print("seg img output shape", seg_img.shape)
-        if not save:
-            plt.figure(1)
-            plt.clf()
-            plt.subplot(331)
-            plt.imshow(seg_labels[:, :, 0], cmap="gray")
-            plt.subplot(332)
-            plt.imshow(seg_labels[:, :, 3], cmap="gray")
-            plt.subplot(333)
-            plt.imshow(seg_labels[:, :, 6], cmap="gray")
-            plt.figure(2)
-            plt.clf()
-            plt.imshow(seg_img)
-            plt.figure(3)
-            plt.clf()
-            plt.imshow(img_list[img_num])
-            plt.show()
-        else:
-            if img_dec_wh == 64:
-                save_folder = 'results64'
-            elif img_dec_wh == 256:
-                save_folder = 'results256'
-            if num_classes == 7:
-                save_folder = save_folder + '_pppups31'
-            save_path = os.path.join(image_dir, save_folder, os.path.splitext(fnames[img_num])[0]
-                                     + "_seg_img.png")
-            plt.imsave(save_path, seg_img * 8)
+            seg = seg_model.predict(input_img)
+            seg = np.reshape(seg, (1, output_wh, output_wh, num_classes))
+            seg_img = np.argmax(seg[0], axis=-1)
+
+            if save:
+                save_path = os.path.join(test_image_dir, "fpn_segs", fname)
+                cv2.imwrite(save_path, seg_img)
 
 
-def segmentation_test(img_wh, img_dec_wh, num_classes, save=False):
-    test_image_dir = 'test_images'
-    print('Preloaded model')
-    autoencoder = load_model('/Users/Akash_Sengupta/Documents/GitHub/segmentation_models/'
-                             'ppp_body_part_models/fpn_256_weight0301.hdf5')
-    test(autoencoder, img_wh, img_dec_wh, test_image_dir, num_classes, save=save)
-
-
-segmentation_test(256, 256, 7, save=True)
+predict("/data/cvfs/as2562/4th_year_proj_datasets/s31_padded_small_glob_rot/val_images/val/",
+        "./up-s31_body_part_models/fpn256_small_glob_rot_no_horiz_flip_0201.hdf5",
+        256,
+        256,
+        32,
+        save=True,
+        pad=False)
